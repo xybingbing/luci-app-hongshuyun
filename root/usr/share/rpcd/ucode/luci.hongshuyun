@@ -223,7 +223,12 @@ function cron_apply_impl() {
 	if (enabled)
 		push(lines, `0 ${hour} * * * ${cmd}`);
 
-	writefile(crontab, join('\n', lines) + '\n');
+	try {
+		writefile(crontab, join('\n', lines) + '\n');
+	} catch (e) {
+		return { result: false, error: 'write crontab failed' };
+	}
+
 	system('/etc/init.d/cron restart >/dev/null 2>&1');
 
 	return { result: true };

@@ -67,11 +67,19 @@ return view.extend({
 		o.inputstyle = 'apply';
 		o.inputtitle = _('应用');
 		o.onclick = function() {
+			ui.showModal(_('自动更新'), [
+				E('p', [ _('正在应用自动更新设置，请稍候...') ])
+			]);
+
 			return this.map.save(null, true).then(() => {
-				return L.resolveDefault(callCronApply(), {}).then(() => {
+				return L.resolveDefault(callCronApply(), {}).then((res) => {
+					if (res?.result !== true)
+						throw res?.error || _('未知错误');
+
 					return location.reload();
 				});
 			}).catch((err) => {
+				ui.hideModal();
 				ui.addNotification(null, E('p', _('应用失败：%s').format(err)));
 				return this.map.reset();
 			});
@@ -82,11 +90,26 @@ return view.extend({
 		o.inputtitle = _('立即同步');
 		o.depends('hongshuyun_enable', '1');
 		o.onclick = function() {
+			ui.showModal(_('同步节点'), [
+				E('p', [ _('正在同步节点，请稍候...') ])
+			]);
+
 			return this.map.save(null, true).then(() => {
-				return fs.exec_direct('/etc/hongshuyun/scripts/update_subscriptions.uc').then(() => {
+				return fs.exec_direct('/etc/hongshuyun/scripts/update_subscriptions.uc').then((res) => {
+					if (res && res.code !== 0) {
+						ui.hideModal();
+						ui.addNotification(null, E('p', [
+							_('同步失败（退出码 %s）').format(res.code),
+							E('br'),
+							E('small', {}, [ (res.stderr || res.stdout || '').trim() || '-' ])
+						]));
+						return this.map.reset();
+					}
+
 					return location.reload();
 				});
 			}).catch((err) => {
+				ui.hideModal();
 				ui.addNotification(null, E('p', _('同步失败：%s').format(err)));
 				return this.map.reset();
 			});
