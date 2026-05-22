@@ -16,6 +16,11 @@
 			"uci": [ "hongshuyun" ]
 		},
 		"write": {
+			"file": {
+				"/etc/hongshuyun/resources/*.txt": [ "write" ],
+				"/etc/hongshuyun/resources/*.ver": [ "write" ],
+				"/var/run/hongshuyun/*": [ "write" ]
+			},
 			"uci": [ "hongshuyun" ]
 		}
 	}
