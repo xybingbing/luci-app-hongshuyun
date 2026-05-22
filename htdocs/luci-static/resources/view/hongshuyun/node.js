@@ -46,14 +46,40 @@ return view.extend({
 		o.default = 'http://api.hongshu.one';
 		o.rmempty = false;
 
+		o = s.option(form.Flag, 'auto_update', _('自动更新'));
+		o.default = '0';
+		o.rmempty = false;
+
+		o = s.option(form.ListValue, 'auto_update_time', _('更新时间'));
+		for (let i = 0; i < 24; i++)
+			o.value(i, i + ':00');
+		o.default = '2';
+		o.depends('auto_update', '1');
+
+		o = s.option(form.Button, '_apply_cron', _('应用自动更新'));
+		o.inputstyle = 'apply';
+		o.inputtitle = _('应用');
+		o.onclick = function() {
+			return this.map.save(null, true).then(() => {
+				return fs.exec_direct('/etc/hongshuyun/scripts/update_cron.sh').then(() => {
+					return location.reload();
+				});
+			}).catch((err) => {
+				ui.addNotification(null, E('p', _('应用失败：%s').format(err)));
+				return this.map.reset();
+			});
+		};
+
 		o = s.option(form.Button, '_sync', _('同步节点'));
 		o.inputstyle = 'apply';
 		o.inputtitle = _('立即同步');
 		o.depends('hongshuyun_enable', '1');
 		o.onclick = function() {
 			return this.map.save(null, true).then(() => {
+				return fs.exec_direct('/etc/hongshuyun/scripts/update_cron.sh').then(() => {
 				return fs.exec_direct('/etc/hongshuyun/scripts/update_subscriptions.uc').then(() => {
 					return location.reload();
+				});
 				});
 			}).catch((err) => {
 				ui.addNotification(null, E('p', _('同步失败：%s').format(err)));
