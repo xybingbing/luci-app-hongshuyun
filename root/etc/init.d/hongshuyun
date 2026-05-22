@@ -24,6 +24,7 @@ else
 fi
 
 log() {
+	mkdir -p "$RUN_DIR" >/dev/null 2>&1
 	echo -e "$(date "+%Y-%m-%d %H:%M:%S") [DAEMON] $*" >> "$LOG_PATH"
 }
 

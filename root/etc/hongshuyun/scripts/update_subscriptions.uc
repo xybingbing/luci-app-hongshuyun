@@ -16,7 +16,7 @@ import { init_action } from 'luci.sys';
 import {
 	decodeBase64Str, getTime, isEmpty,
 	httpGET, httpPOST, getEpoch, getFactoryInfo,
-	shellQuote, RUN_DIR
+	getFactoryInfoError, shellQuote, RUN_DIR
 } from 'hongshuyun';
 
 const uci = cursor();
@@ -68,20 +68,10 @@ function hongshuyun_get_token(api_base) {
 	} catch (e) {}
 
 	log('Fetching token...');
-	let info = null;
-	try {
-		info = getFactoryInfo();
-	} catch (e) {
-		let msg = null;
-		try {
-			msg = (type(e) === 'string') ? e : sprintf('%.J', e);
-		} catch (e2) {
-			msg = '' + e;
-		}
-		log('getFactoryInfo() failed:', msg);
-	}
+	let info = getFactoryInfo();
 
 	if (!info) {
+		log('getFactoryInfo() failed:', getFactoryInfoError() || 'unknown');
 		info = {
 			pcb_sn: '022106222001583',
 			batch_no: 'A2A0A000JD1911',

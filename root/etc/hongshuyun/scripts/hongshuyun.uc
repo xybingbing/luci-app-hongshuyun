@@ -102,21 +102,32 @@ export function getEpoch() {
 	return int(trim(output.stdout)) || 0;
 };
 
+let factory_last_error = null;
+
+export function getFactoryInfoError() {
+	return factory_last_error;
+};
+
 function readBytes(device, offset, length) {
 	let f;
 	try {
 		f = open(device, 'r');
-		if (!f)
-			throw 'open failed';
+		if (!f) {
+			factory_last_error = sprintf('open %s failed', device);
+			return null;
+		}
 		f.seek(offset);
 		const buf = f.read(length);
 		f.close();
-		if (buf === null || length(buf) !== length)
-			throw sprintf('read length mismatch: expect %d, got %d', length, buf ? length(buf) : 0);
+		if (buf === null || length(buf) !== length) {
+			factory_last_error = sprintf('read %s length mismatch at 0x%X: expect %d, got %d', device, offset, length, buf ? length(buf) : 0);
+			return null;
+		}
 		return buf;
 	} catch (e) {
 		try { if (f) f.close(); } catch (e2) {}
-		throw sprintf('readBytes(%s,0x%X,%d) failed: %s', device, offset, length, e);
+		factory_last_error = sprintf('read %s failed at 0x%X len %d: %s', device, offset, length, e);
+		return null;
 	}
 }
 
@@ -129,9 +140,14 @@ export function getFactoryInfo() {
 	const MAC4Offset = 0x3FFFA;
 	const MACLength = 6;
 
+	factory_last_error = null;
+
 	let pcb_sn = readBytes(FactoryPartition, PCBSNOffset, PCBSNLength);
 	let batch_no = readBytes(FactoryPartition, BatchOffset, BatchLength);
 	let mac_bytes = readBytes(FactoryPartition, MAC4Offset, MACLength);
+
+	if (!pcb_sn || !batch_no || !mac_bytes)
+		return null;
 
 	pcb_sn = replace(pcb_sn, /[\x00\xff]+$/g, '');
 	batch_no = replace(batch_no, /[\x00\xff]+$/g, '');
