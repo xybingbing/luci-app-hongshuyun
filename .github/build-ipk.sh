@@ -156,6 +156,19 @@ default_prerm $0 $@' > "$TEMP_PKG_DIR/CONTROL/prerm"
 	IPK_PATH="$TEMP_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
 	AR_LIST="$(ar t "$IPK_PATH" 2>/dev/null || true)"
 	if [ -z "$AR_LIST" ]; then
+		REPACK_DIR="$TEMP_DIR/.repack"
+		mkdir -p "$REPACK_DIR"
+		if gzip -dc "$IPK_PATH" 2>/dev/null | tar -C "$REPACK_DIR" -xf - 2>/dev/null; then
+			if [ -f "$REPACK_DIR/debian-binary" ] && [ -f "$REPACK_DIR/control.tar.gz" ] && [ -f "$REPACK_DIR/data.tar.gz" ]; then
+				AR_IPK="$TEMP_DIR/.repacked.ipk"
+				rm -f "$AR_IPK"
+				( cd "$REPACK_DIR" && ar rcs "$AR_IPK" debian-binary control.tar.gz data.tar.gz )
+				mv -f "$AR_IPK" "$IPK_PATH"
+				AR_LIST="$(ar t "$IPK_PATH" 2>/dev/null || true)"
+			fi
+		fi
+	fi
+	if [ -z "$AR_LIST" ]; then
 		echo "Invalid ipk: $IPK_PATH" >&2
 		exit 1
 	fi
