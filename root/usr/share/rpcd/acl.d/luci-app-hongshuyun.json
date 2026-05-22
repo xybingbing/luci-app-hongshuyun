@@ -4,6 +4,8 @@
 		"read": {
 			"file": {
 				"/etc/hongshuyun/scripts/update_subscriptions.uc": [ "exec" ],
+				"/etc/hongshuyun/scripts/update_cron.sh": [ "exec" ],
+				"/etc/hongshuyun/scripts/update_crond.sh": [ "exec" ],
 				"/var/run/hongshuyun/hongshuyun.log": [ "read" ],
 				"/var/run/hongshuyun/sing-box-c.log": [ "read" ]
 			},
