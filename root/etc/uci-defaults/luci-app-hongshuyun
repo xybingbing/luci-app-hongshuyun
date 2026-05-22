@@ -28,4 +28,8 @@ uci -q batch <<-EOF >"/dev/null"
 	commit firewall
 EOF
 
+rm -f /tmp/luci-indexcache*
+rm -rf /tmp/luci-modulecache/
+killall -HUP rpcd 2>/dev/null
+
 exit 0
