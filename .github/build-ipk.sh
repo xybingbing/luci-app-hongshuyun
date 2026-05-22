@@ -155,23 +155,27 @@ default_prerm $0 $@' > "$TEMP_PKG_DIR/CONTROL/prerm"
 	ipkg-build -m "" "$TEMP_PKG_DIR" "$TEMP_DIR"
 
 	IPK_PATH="$TEMP_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
-	REPACK_DIR="$TEMP_DIR/.repack"
-	AR_IPK="$TEMP_DIR/.repacked.ipk"
+	if [ "${REPACK_IPK_AR:-0}" = "1" ]; then
+		REPACK_DIR="$TEMP_DIR/.repack"
+		AR_IPK="$TEMP_DIR/.repacked.ipk"
 
-	rm -rf "$REPACK_DIR"
-	mkdir -p "$REPACK_DIR"
-	tar -C "$REPACK_DIR" -xzf "$IPK_PATH"
+		rm -rf "$REPACK_DIR"
+		mkdir -p "$REPACK_DIR"
+		tar -C "$REPACK_DIR" -xzf "$IPK_PATH"
 
-	rm -f "$AR_IPK"
-	( cd "$REPACK_DIR" && ar rcs "$AR_IPK" debian-binary control.tar.gz data.tar.gz )
+		rm -f "$AR_IPK"
+		( cd "$REPACK_DIR" && ar -crf "$AR_IPK" ./debian-binary ./control.tar.gz ./data.tar.gz )
 
-	AR_LIST="$(ar t "$AR_IPK" 2>/dev/null || true)"
-	for f in debian-binary control.tar.gz data.tar.gz; do
-		echo "$AR_LIST" | grep -qx "$f" || {
-			echo "Invalid repacked ipk: missing $f" >&2
-			exit 1
-		}
-	done
+		AR_LIST="$(ar t "$AR_IPK" 2>/dev/null || true)"
+		for f in debian-binary control.tar.gz data.tar.gz; do
+			echo "$AR_LIST" | grep -Eqx "(\./)?$f" || {
+				echo "Invalid repacked ipk: missing $f" >&2
+				exit 1
+			}
+		done
 
-	mv -f "$AR_IPK" "$BASE_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
+		mv -f "$AR_IPK" "$BASE_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
+	else
+		mv -f "$IPK_PATH" "$BASE_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
+	fi
 fi
