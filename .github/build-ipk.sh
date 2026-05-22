@@ -28,6 +28,7 @@ fi
 
 TEMP_DIR="$(mktemp -d -p $BASE_DIR)"
 TEMP_PKG_DIR="$TEMP_DIR/$PKG_NAME"
+trap 'rm -rf "$TEMP_DIR"' EXIT
 mkdir -p "$TEMP_PKG_DIR/lib/upgrade/keep.d/"
 mkdir -p "$TEMP_PKG_DIR/usr/lib/lua/luci/i18n/"
 mkdir -p "$TEMP_PKG_DIR/www/"
@@ -134,12 +135,14 @@ else
 default_postinst $0 $@' > "$TEMP_PKG_DIR/CONTROL/postinst"
 	chmod 0755 "$TEMP_PKG_DIR/CONTROL/postinst"
 
-	echo -e "[ -n "\${IPKG_INSTROOT}" ] || {
-	(. /etc/uci-defaults/$PKG_NAME) && rm -f /etc/uci-defaults/$PKG_NAME
-	rm -f /tmp/luci-indexcache
-	rm -rf /tmp/luci-modulecache/
-	exit 0
-}" > "$TEMP_PKG_DIR/CONTROL/postinst-pkg"
+	cat > "$TEMP_PKG_DIR/CONTROL/postinst-pkg" <<-EOF
+		[ -n "\${IPKG_INSTROOT}" ] || {
+			(. /etc/uci-defaults/$PKG_NAME) && rm -f /etc/uci-defaults/$PKG_NAME
+			rm -f /tmp/luci-indexcache
+			rm -rf /tmp/luci-modulecache/
+			exit 0
+		}
+	EOF
 	chmod 0755 "$TEMP_PKG_DIR/CONTROL/postinst-pkg"
 
 	echo -e '#!/bin/sh
@@ -150,7 +153,18 @@ default_prerm $0 $@' > "$TEMP_PKG_DIR/CONTROL/prerm"
 
 	ipkg-build -m "" "$TEMP_PKG_DIR" "$TEMP_DIR"
 
-	mv "$TEMP_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk" "$BASE_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
-fi
+	IPK_PATH="$TEMP_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
+	AR_LIST="$(ar t "$IPK_PATH" 2>/dev/null || true)"
+	if [ -z "$AR_LIST" ]; then
+		echo "Invalid ipk: $IPK_PATH" >&2
+		exit 1
+	fi
+	for f in debian-binary control.tar.gz data.tar.gz; do
+		echo "$AR_LIST" | grep -qx "$f" || {
+			echo "Invalid ipk: missing $f" >&2
+			exit 1
+		}
+	done
 
-rm -rf "$TEMP_DIR"
+	mv "$IPK_PATH" "$BASE_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
+fi

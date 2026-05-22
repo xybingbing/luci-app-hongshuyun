@@ -36,6 +36,46 @@ const callSyncNodes = rpc.declare({
 	expect: { '': {} }
 });
 
+function getSyncNodes(o) {
+	o.default = E('div', { 'style': 'cbi-value-field' }, [
+		E('button', {
+			'class': 'btn cbi-button cbi-button-action',
+			'click': ui.createHandlerFn(this, () => {
+				let ele = o.default.firstElementChild.nextElementSibling;
+				ele.style.setProperty('color', 'gray');
+				ele.innerHTML = _('同步中...');
+
+				return this.save(null, true).then(() => {
+					return L.resolveDefault(callSyncNodes(), {});
+				}).then((res) => {
+					if (res?.result !== true) {
+						ele.style.setProperty('color', 'red');
+						ele.innerHTML = _('失败');
+
+						ui.addNotification(null, E('p', [
+							_('同步失败（退出码 %s）').format(res?.code ?? '-'),
+							E('br'),
+							E('small', {}, [ (res?.output || '').trim() || _('请查看运行状态里的红薯云日志') ])
+						]));
+					} else {
+						ele.style.setProperty('color', 'green');
+						ele.innerHTML = _('成功');
+					}
+
+					return o.map.reset();
+				}).catch((err) => {
+					ele.style.setProperty('color', 'red');
+					ele.innerHTML = _('失败');
+					ui.addNotification(null, E('p', _('同步失败：%s').format(err?.message || err)));
+					return o.map.reset();
+				});
+			})
+		}, [ _('同步') ]),
+		' ',
+		E('strong', { 'style': 'color:gray' }, _('未同步'))
+	]);
+}
+
 return view.extend({
 	load() {
 		return Promise.all([
@@ -91,35 +131,9 @@ return view.extend({
 			});
 		};
 
-		o = s.option(form.Button, '_sync', _('同步节点'));
-		o.inputstyle = 'apply';
-		o.inputtitle = _('立即同步');
+		o = s.option(form.DummyValue, '_sync', _('同步节点'));
+		o.cfgvalue = L.bind(getSyncNodes, m, o);
 		o.depends('hongshuyun_enable', '1');
-		o.onclick = function() {
-			ui.showModal(_('同步节点'), [
-				E('p', [ _('正在同步节点，请稍候...') ])
-			]);
-
-			return this.map.save(null, true).then(() => {
-				return callSyncNodes().then((res) => {
-					if (res?.result !== true) {
-						ui.hideModal();
-						ui.addNotification(null, E('p', [
-							_('同步失败（退出码 %s）').format(res?.code ?? '-'),
-							E('br'),
-							E('small', {}, [ (res?.output || '').trim() || _('请查看运行状态里的红薯云日志') ])
-						]));
-						return this.map.reset();
-					}
-
-					return location.reload();
-				});
-			}).catch((err) => {
-				ui.hideModal();
-				ui.addNotification(null, E('p', _('同步失败：%s').format(err?.message || err)));
-				return this.map.reset();
-			});
-		};
 
 		s = m.section(form.GridSection, 'node', _('节点列表'));
 		s.anonymous = true;
