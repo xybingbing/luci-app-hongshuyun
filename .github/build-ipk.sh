@@ -99,7 +99,7 @@ default_prerm' > "$TEMP_DIR/pre-deinstall"
 		--info "version:$PKG_VERSION" \
 		--info "description:红薯云代理平台" \
 		--info "arch:all" \
-		--info "origin:https://github.com/hongshuyun/hongshuyun" \
+		--info "origin:https://github.com/xybingbing/luci-app-hongshuyun" \
 		--info "url:" \
 		--info "maintainer:Tianling Shen <cnsztl@immortalwrt.org>" \
 		--info "provides:" \
@@ -118,7 +118,7 @@ else
 		Package: $PKG_NAME
 		Version: $PKG_VERSION
 		Depends: libc, sing-box, firewall4, kmod-nft-tproxy, ucode-mod-digest
-		Source: https://github.com/hongshuyun/hongshuyun
+		Source: https://github.com/xybingbing/luci-app-hongshuyun
 		SourceName: $PKG_NAME
 		Section: luci
 		SourceDateEpoch: $PKG_SOURCE_DATE_EPOCH
