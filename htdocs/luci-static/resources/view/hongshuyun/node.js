@@ -7,6 +7,7 @@
 'use strict';
 'require form';
 'require fs';
+'require rpc';
 'require uci';
 'require ui';
 'require view';
@@ -22,6 +23,12 @@ const css = '						\
 	padding-top: 6px;				\
 	padding-bottom: 6px;				\
 }';
+
+const callCronApply = rpc.declare({
+	object: 'luci.hongshuyun',
+	method: 'cron_apply',
+	expect: { '': {} }
+});
 
 return view.extend({
 	load() {
@@ -61,7 +68,7 @@ return view.extend({
 		o.inputtitle = _('应用');
 		o.onclick = function() {
 			return this.map.save(null, true).then(() => {
-				return fs.exec_direct('/etc/hongshuyun/scripts/update_cron.sh').then(() => {
+				return L.resolveDefault(callCronApply(), {}).then(() => {
 					return location.reload();
 				});
 			}).catch((err) => {
@@ -76,10 +83,8 @@ return view.extend({
 		o.depends('hongshuyun_enable', '1');
 		o.onclick = function() {
 			return this.map.save(null, true).then(() => {
-				return fs.exec_direct('/etc/hongshuyun/scripts/update_cron.sh').then(() => {
 				return fs.exec_direct('/etc/hongshuyun/scripts/update_subscriptions.uc').then(() => {
 					return location.reload();
-				});
 				});
 			}).catch((err) => {
 				ui.addNotification(null, E('p', _('同步失败：%s').format(err)));

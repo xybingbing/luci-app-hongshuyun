@@ -193,6 +193,42 @@ function resources_update_one(type) {
 	return { result: true, updated: true, local_version: local_ver, remote_version: remote.ver };
 }
 
+function cron_apply_impl() {
+	const uc = cursor();
+	uc.load('hongshuyun');
+
+	const enabled = uc.get('hongshuyun', 'subscription', 'auto_update') === '1';
+	const hour = uc.get('hongshuyun', 'subscription', 'auto_update_time') || '2';
+
+	const crontab = '/etc/crontabs/root';
+	const cmd = '/bin/sh /etc/hongshuyun/scripts/update_crond.sh';
+
+	let content = '';
+	try {
+		content = readfile(crontab) ?? '';
+	} catch (e) {
+		content = '';
+	}
+
+	let lines = [];
+	for (let line in split(content, /[\r\n]+/)) {
+		line = trim(line);
+		if (!line)
+			continue;
+		if (match(line, /update_crond\.sh/))
+			continue;
+		push(lines, line);
+	}
+
+	if (enabled)
+		push(lines, `0 ${hour} * * * ${cmd}`);
+
+	writefile(crontab, join('\n', lines) + '\n');
+	system('/etc/init.d/cron restart >/dev/null 2>&1');
+
+	return { result: true };
+}
+
 const methods = {
 	log_clean: {
 		args: { type: 'type' },
@@ -266,6 +302,12 @@ const methods = {
 			}
 
 			return resources_update_one(type);
+		}
+	},
+
+	cron_apply: {
+		call: function() {
+			return cron_apply_impl();
 		}
 	},
 
