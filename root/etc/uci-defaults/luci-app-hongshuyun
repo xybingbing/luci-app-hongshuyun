@@ -28,6 +28,23 @@ uci -q batch <<-EOF >"/dev/null"
 	commit firewall
 EOF
 
+if [ -f "/etc/init.d/hongshuyun" ]; then
+	/etc/init.d/hongshuyun stop >/dev/null 2>&1
+fi
+
+rm -rf /var/run/hongshuyun >/dev/null 2>&1
+
+rm -f /etc/config/hongshuyun /etc/config/hongshuyun-opkg >/dev/null 2>&1
+if [ -f "/usr/share/hongshuyun/defaults/hongshuyun" ]; then
+	cp -f /usr/share/hongshuyun/defaults/hongshuyun /etc/config/hongshuyun
+fi
+
+if [ -f "/etc/crontabs/root" ]; then
+	sed -i '/hongshuyun\/scripts\/update_crond\.sh/d' /etc/crontabs/root
+fi
+
+/etc/init.d/cron restart >/dev/null 2>&1
+
 rm -f /tmp/luci-indexcache*
 rm -rf /tmp/luci-modulecache/
 killall -HUP rpcd 2>/dev/null

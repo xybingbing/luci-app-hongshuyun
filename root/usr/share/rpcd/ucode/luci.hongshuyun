@@ -316,6 +316,14 @@ const methods = {
 		}
 	},
 
+	sync_nodes: {
+		call: function() {
+			system(`mkdir -p ${shellquote(RUN_DIR)}`);
+			const code = system('/usr/bin/ucode -S /etc/hongshuyun/scripts/update_subscriptions.uc >/dev/null 2>&1');
+			return { result: (code === 0), code };
+		}
+	},
+
 	singbox_get_features: {
 		call: function() {
 			let features = {};

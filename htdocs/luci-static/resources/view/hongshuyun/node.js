@@ -30,6 +30,12 @@ const callCronApply = rpc.declare({
 	expect: { '': {} }
 });
 
+const callSyncNodes = rpc.declare({
+	object: 'luci.hongshuyun',
+	method: 'sync_nodes',
+	expect: { '': {} }
+});
+
 return view.extend({
 	load() {
 		return Promise.all([
@@ -95,13 +101,13 @@ return view.extend({
 			]);
 
 			return this.map.save(null, true).then(() => {
-				return fs.exec_direct('/etc/hongshuyun/scripts/update_subscriptions.uc').then((res) => {
-					if (res && res.code !== 0) {
+				return L.resolveDefault(callSyncNodes(), {}).then((res) => {
+					if (res?.result !== true) {
 						ui.hideModal();
 						ui.addNotification(null, E('p', [
-							_('同步失败（退出码 %s）').format(res.code),
+							_('同步失败（退出码 %s）').format(res?.code ?? '-'),
 							E('br'),
-							E('small', {}, [ (res.stderr || res.stdout || '').trim() || '-' ])
+							E('small', {}, [ _('请查看运行状态里的红薯云日志') ])
 						]));
 						return this.map.reset();
 					}
