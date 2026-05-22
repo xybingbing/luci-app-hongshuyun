@@ -14,10 +14,6 @@ LUCI_DEPENDS:= \
 
 PKG_NAME:=luci-app-hongshuyun
 
-define Package/luci-app-hongshuyun/conffiles
-/etc/config/hongshuyun
-endef
-
 include $(TOPDIR)/feeds/luci/luci.mk
 
 # call BuildPackage - OpenWrt buildroot signature

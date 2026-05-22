@@ -69,13 +69,13 @@ function sh_capture(cmd) {
 	const out = fd.read(1024 * 1024) ?? '';
 	fd.close();
 
-	let m = match(out, new RegExp(`\\n${marker}(\\d+)\\n$`));
+	let m = match(out, /\n__RC__(\d+)\n$/);
 	if (!m)
 		return { code: 255, output: out };
 
 	return {
 		code: int(m[1]) || 0,
-		output: replace(out, new RegExp(`\\n${marker}\\d+\\n$`), '')
+		output: replace(out, /\n__RC__\d+\n$/, '')
 	};
 }
 

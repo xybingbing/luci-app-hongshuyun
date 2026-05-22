@@ -51,11 +51,8 @@ po2lmo "$PKG_DIR/po/zh_Hans/hongshuyun.po" "$TEMP_PKG_DIR/usr/lib/lua/luci/i18n/
 
 if [ "$PKG_MGR" == "apk" ]; then
 	find "$TEMP_PKG_DIR" -type f,l -printf '/%P\n' | sort > "$TEMP_PKG_DIR/lib/apk/packages/$PKG_NAME.list"
-	echo "/etc/config/hongshuyun" >> "$TEMP_PKG_DIR/lib/apk/packages/$PKG_NAME.conffiles"
-	cat "$TEMP_PKG_DIR/lib/apk/packages/$PKG_NAME.conffiles" | while IFS= read -r file; do
-		[ -f "$TEMP_PKG_DIR/$file" ] || continue
-		sha256sum "$TEMP_PKG_DIR/$file" | sed "s,$TEMP_PKG_DIR/,," >> "$TEMP_PKG_DIR/lib/apk/packages/$PKG_NAME.conffiles_static"
-	done
+	: > "$TEMP_PKG_DIR/lib/apk/packages/$PKG_NAME.conffiles"
+	: > "$TEMP_PKG_DIR/lib/apk/packages/$PKG_NAME.conffiles_static"
 
 	echo -e '#!/bin/sh
 [ "${IPKG_NO_SCRIPT}" = "1" ] && exit 0
@@ -128,8 +125,7 @@ else
 		Description:  红薯云代理平台
 	EOF
 	chmod 0644 "$TEMP_PKG_DIR/CONTROL/control"
-
-	echo -e "/etc/config/hongshuyun" > "$TEMP_PKG_DIR/CONTROL/conffiles"
+	: > "$TEMP_PKG_DIR/CONTROL/conffiles"
 
 	echo -e '#!/bin/sh
 [ "${IPKG_NO_SCRIPT}" = "1" ] && exit 0
