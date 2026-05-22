@@ -26,6 +26,7 @@ const css = '				\
 }					\
 .hongshuyun-page .cbi-map {		\
 	margin-top: 8px;			\
+	padding: 0 8px;			\
 }					\
 .hongshuyun-page .cbi-section-node {	\
 	padding: 14px 16px;		\
@@ -33,6 +34,9 @@ const css = '				\
 .hongshuyun-page .cbi-value {		\
 	padding-top: 6px;		\
 	padding-bottom: 6px;		\
+}					\
+.hongshuyun-page .cbi-section {		\
+	margin-top: 12px;		\
 }';
 
 const run_dir = '/var/run/hongshuyun';

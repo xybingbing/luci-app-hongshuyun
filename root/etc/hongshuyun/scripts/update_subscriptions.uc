@@ -68,17 +68,35 @@ function hongshuyun_get_token(api_base) {
 	} catch (e) {}
 
 	log('Fetching token...');
-	const info = getFactoryInfo();
-	if (!info) {
-		log('Failed to get factory info.');
-		return null;
+	let info = null;
+	try {
+		info = getFactoryInfo();
+	} catch (e) {
+		log('getFactoryInfo() failed.');
 	}
 
-	const body = sprintf('%.J', {
-		pcb_sn: info.pcb_sn,
-		batch_no: info.batch_no,
-		mac: info.mac
-	});
+	if (!info) {
+		info = {
+			pcb_sn: '022106222001583',
+			batch_no: 'A2A0A000JD1911',
+			mac: 'E4:67:1E:AD:B4:A4'
+		};
+		log('Using fallback factory info.');
+	}
+
+	log('Factory info:', info?.pcb_sn, info?.batch_no, info?.mac);
+
+	let body = null;
+	try {
+		body = sprintf('%.J', {
+			pcb_sn: info.pcb_sn,
+			batch_no: info.batch_no,
+			mac: info.mac
+		});
+	} catch (e) {
+		log('Failed to build token request body.');
+		return null;
+	}
 
 	const res = httpPOST(`${api_base}/api/v1/tob/tob_user`, body, {
 		'Content-Type': 'application/json'
