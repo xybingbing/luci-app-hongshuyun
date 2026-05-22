@@ -1,0 +1,28 @@
+# OpenWrt build artifacts
+*.ipk
+*.deb
+*.tar.gz
+build/
+bin/
+logs/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (if any)
+node_modules/
+package-lock.json
+
+# Python (if any)
+__pycache__/
+*.pyc
+
+homeproxy-master
