@@ -41,7 +41,6 @@ body:
       description: |
         The sing-box configuration file where the error occurred (use command below).
         For client: ```cat /var/run/hongshuyun/sing-box-c.json```
-        For server: ```cat /var/run/hongshuyun/sing-box-s.json```
     validations:
       required: true
   - type: textarea
@@ -60,7 +59,6 @@ body:
       description: |
         The sing-box log file where the error occurred (use command below).
         For client: ```cat /var/run/hongshuyun/sing-box-c.log```
-        For server: ```cat /var/run/hongshuyun/sing-box-s.log```
     validations:
       required: true
 
