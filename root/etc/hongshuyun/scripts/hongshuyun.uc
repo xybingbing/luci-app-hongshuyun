@@ -131,6 +131,22 @@ function readBytes(device, offset, len) {
 	}
 }
 
+function rstripNullFF(s) {
+	if (!s || type(s) !== 'string')
+		return s;
+
+	let n = length(s);
+	while (n > 0) {
+		const b = ord(s, n - 1);
+		if (b === 0 || b === 255)
+			n--;
+		else
+			break;
+	}
+
+	return (n === length(s)) ? s : substr(s, 0, n);
+}
+
 export function getFactoryInfo() {
 	const FactoryPartition = '/dev/mtd2';
 	const PCBSNOffset = 0x3FF00;
@@ -149,8 +165,8 @@ export function getFactoryInfo() {
 	if (!pcb_sn || !batch_no || !mac_bytes)
 		return null;
 
-	pcb_sn = replace(pcb_sn, /[\x00\xff]+$/g, '');
-	batch_no = replace(batch_no, /[\x00\xff]+$/g, '');
+	pcb_sn = rstripNullFF(pcb_sn);
+	batch_no = rstripNullFF(batch_no);
 
 	let mac = [];
 	for (let i = 0; i < MACLength; i++)
