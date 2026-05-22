@@ -78,7 +78,7 @@ return view.extend({
 			]);
 
 			return this.map.save(null, true).then(() => {
-				return L.resolveDefault(callCronApply(), {}).then((res) => {
+				return callCronApply().then((res) => {
 					if (res?.result !== true)
 						throw res?.error || _('未知错误');
 
@@ -86,7 +86,7 @@ return view.extend({
 				});
 			}).catch((err) => {
 				ui.hideModal();
-				ui.addNotification(null, E('p', _('应用失败：%s').format(err)));
+				ui.addNotification(null, E('p', _('应用失败：%s').format(err?.message || err)));
 				return this.map.reset();
 			});
 		};
@@ -101,7 +101,7 @@ return view.extend({
 			]);
 
 			return this.map.save(null, true).then(() => {
-				return L.resolveDefault(callSyncNodes(), {}).then((res) => {
+				return callSyncNodes().then((res) => {
 					if (res?.result !== true) {
 						ui.hideModal();
 						ui.addNotification(null, E('p', [
@@ -116,7 +116,7 @@ return view.extend({
 				});
 			}).catch((err) => {
 				ui.hideModal();
-				ui.addNotification(null, E('p', _('同步失败：%s').format(err)));
+				ui.addNotification(null, E('p', _('同步失败：%s').format(err?.message || err)));
 				return this.map.reset();
 			});
 		};
