@@ -31,8 +31,8 @@ export function executeCommand(...args) {
 	outfd.seek(0);
 	errfd.seek(0);
 
-	const stdout = outfd.read(1024 * 512) ?? '';
-	const stderr = errfd.read(1024 * 512) ?? '';
+	const stdout = outfd.read(1024 * 1024 * 2) ?? '';
+	const stderr = errfd.read(1024 * 256) ?? '';
 
 	outfd.close();
 	errfd.close();
@@ -74,6 +74,8 @@ export function httpGET(url, headers, ua) {
 			header_args += ` --header ${shellQuote(k + ': ' + headers[k])}`;
 
 	const output = executeCommand(`/usr/bin/wget -qO- --user-agent ${shellQuote(ua)} --timeout=10${header_args} ${shellQuote(url)}`) || {};
+	if (output.stdout === null)
+		return null;
 	return trim(output.stdout);
 };
 
@@ -90,6 +92,8 @@ export function httpPOST(url, body, headers, ua) {
 			header_args += ` --header ${shellQuote(k + ': ' + headers[k])}`;
 
 	const output = executeCommand(`/usr/bin/wget -qO- --user-agent ${shellQuote(ua)} --timeout=10 --post-data ${shellQuote(body || '')}${header_args} ${shellQuote(url)}`) || {};
+	if (output.stdout === null)
+		return null;
 	return trim(output.stdout);
 };
 

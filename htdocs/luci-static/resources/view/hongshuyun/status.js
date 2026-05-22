@@ -23,6 +23,16 @@ const css = '				\
 	padding: .5rem;			\
 	word-break: break-all;		\
 	margin: 0;			\
+}					\
+.hongshuyun-page .cbi-map {		\
+	margin-top: 8px;			\
+}					\
+.hongshuyun-page .cbi-section-node {	\
+	padding: 14px 16px;		\
+}					\
+.hongshuyun-page .cbi-value {		\
+	padding-top: 6px;		\
+	padding-bottom: 6px;		\
 }';
 
 const run_dir = '/var/run/hongshuyun';
@@ -225,7 +235,9 @@ return view.extend({
 		o = s.option(form.DummyValue, '_sing-box-c_logview');
 		o.render = L.bind(getRuntimeLog, this, o, _('sing-box client'));
 
-		return m.render();
+		return m.render().then((node) => {
+			return E('div', { 'class': 'hongshuyun-page' }, [ node ]);
+		});
 	},
 
 	handleSaveApply: null,

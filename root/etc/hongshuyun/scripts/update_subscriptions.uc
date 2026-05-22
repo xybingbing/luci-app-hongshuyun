@@ -67,6 +67,7 @@ function hongshuyun_get_token(api_base) {
 			return cache.token;
 	} catch (e) {}
 
+	log('Fetching token...');
 	const info = getFactoryInfo();
 	if (!info) {
 		log('Failed to get factory info.');
@@ -116,6 +117,7 @@ function hongshuyun_fetch_nodes(api_base) {
 	if (!token)
 		return [];
 
+	log('Fetching nodes...');
 	const res = httpGET(`${api_base}/api/v1/tob/tob_node`, {
 		'Authorization': `Bearer ${token}`
 	}, user_agent);
