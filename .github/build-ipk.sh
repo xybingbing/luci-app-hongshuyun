@@ -151,48 +151,7 @@ default_postinst $0 $@' > "$TEMP_PKG_DIR/CONTROL/postinst"
 default_prerm $0 $@' > "$TEMP_PKG_DIR/CONTROL/prerm"
 	chmod 0755 "$TEMP_PKG_DIR/CONTROL/prerm"
 
-	IPK_BUILD_DIR="$TEMP_DIR/.ipkbuild"
-	mkdir -p "$IPK_BUILD_DIR"
+	ipkg-build -m "" "$TEMP_PKG_DIR" "$TEMP_DIR"
 
-	DATA_TAR="$IPK_BUILD_DIR/data.tar.gz"
-	CONTROL_TAR="$IPK_BUILD_DIR/control.tar.gz"
-	DEBIAN_BINARY="$IPK_BUILD_DIR/debian-binary"
-
-	TIMESTAMP="$(date --date="@$PKG_SOURCE_DATE_EPOCH" 2>/dev/null || date)"
-
-	( cd "$TEMP_PKG_DIR" && tar \
-		--format=gnu \
-		--numeric-owner \
-		--sort=name \
-		--exclude='./CONTROL' \
-		--exclude='./CONTROL/*' \
-		--exclude='CONTROL' \
-		--exclude='CONTROL/*' \
-		-cpf - \
-		--mtime="$TIMESTAMP" \
-		. | gzip -n - > "$DATA_TAR" )
-	installed_size="$(gzip -dc < "$DATA_TAR" | wc -c)"
-	sed -i -e "s/^Installed-Size: .*/Installed-Size: $installed_size/" \
-		"$TEMP_PKG_DIR"/CONTROL/control
-
-	( cd "$TEMP_PKG_DIR/CONTROL" && tar \
-		--format=gnu \
-		--numeric-owner \
-		--sort=name \
-		-cf - \
-		--mtime="$TIMESTAMP" \
-		. | gzip -n - > "$CONTROL_TAR" )
-	echo "2.0" > "$DEBIAN_BINARY"
-
-	IPK_PATH="$BASE_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
-	rm -f "$IPK_PATH"
-	( cd "$IPK_BUILD_DIR" && ar rcs "$IPK_PATH" debian-binary control.tar.gz data.tar.gz )
-
-	AR_LIST="$(ar t "$IPK_PATH" 2>/dev/null || true)"
-	for f in debian-binary control.tar.gz data.tar.gz; do
-		echo "$AR_LIST" | grep -qx "$f" || {
-			echo "Invalid ipk: missing $f" >&2
-			exit 1
-		}
-	done
+	mv "$TEMP_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk" "$BASE_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
 fi
