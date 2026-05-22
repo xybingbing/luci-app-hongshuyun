@@ -82,6 +82,29 @@ return view.extend({
 		o.default = 'nil';
 		o.rmempty = false;
 
+		o = s.option(form.ListValue, 'main_udp_node', _('主 UDP 节点'));
+		o.value('same', _('保持与主节点一致'));
+		for (let i in proxy_nodes)
+			o.value(i, proxy_nodes[i]);
+		o.default = 'same';
+		o.rmempty = false;
+
+		o = s.option(form.ListValue, 'dns_server', _('DNS 服务器'));
+		o.value('wan', _('使用 WAN DNS'));
+		o.value('8.8.8.8', _('谷歌公共 DNS (8.8.8.8)'));
+		o.value('1.1.1.1', _('Cloudflare 公共 DNS (1.1.1.1)'));
+		o.value('9.9.9.9', _('Quad9 公共 DNS (9.9.9.9)'));
+		o.default = '8.8.8.8';
+		o.rmempty = false;
+
+		o = s.option(form.ListValue, 'china_dns_server', _('国内 DNS 服务器'));
+		o.value('wan', _('使用 WAN DNS'));
+		o.value('223.5.5.5', _('阿里云公共 DNS (223.5.5.5)'));
+		o.value('119.29.29.29', _('腾讯公共 DNS (119.29.29.29)'));
+		o.value('114.114.114.114', _('114DNS (114.114.114.114)'));
+		o.default = '223.5.5.5';
+		o.rmempty = false;
+
 		return m.render();
 	},
 
