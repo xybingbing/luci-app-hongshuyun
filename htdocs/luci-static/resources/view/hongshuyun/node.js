@@ -11,6 +11,18 @@
 'require ui';
 'require view';
 
+const css = '						\
+.hongshuyun-page .cbi-map {				\
+	margin-top: 8px;					\
+}							\
+.hongshuyun-page .cbi-section-node {			\
+	padding: 14px 16px;				\
+}							\
+.hongshuyun-page .cbi-value {				\
+	padding-top: 6px;				\
+	padding-bottom: 6px;				\
+}';
+
 return view.extend({
 	load() {
 		return Promise.all([
@@ -59,7 +71,12 @@ return view.extend({
 			return uci.get('hongshuyun', section_id, 'label') || section_id;
 		};
 
-		return m.render();
+		return m.render().then((node) => {
+			return E([
+				E('style', [ css ]),
+				E('div', { 'class': 'hongshuyun-page' }, [ node ])
+			]);
+		});
 	},
 
 	handleSaveApply: null,

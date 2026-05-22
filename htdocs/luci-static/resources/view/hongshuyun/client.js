@@ -13,6 +13,18 @@
 
 'require hongshuyun as hp';
 
+const css = '						\
+.hongshuyun-page .cbi-map {				\
+	margin-top: 8px;					\
+}							\
+.hongshuyun-page .cbi-section-node {			\
+	padding: 14px 16px;				\
+}							\
+.hongshuyun-page .cbi-value {				\
+	padding-top: 6px;				\
+	padding-bottom: 6px;				\
+}';
+
 const callServiceList = rpc.declare({
 	object: 'service',
 	method: 'list',
@@ -105,7 +117,12 @@ return view.extend({
 		o.default = '223.5.5.5';
 		o.rmempty = false;
 
-		return m.render();
+		return m.render().then((node) => {
+			return E([
+				E('style', [ css ]),
+				E('div', { 'class': 'hongshuyun-page' }, [ node ])
+			]);
+		});
 	},
 
 	handleSaveApply: null,

@@ -16,7 +16,7 @@ import { init_action } from 'luci.sys';
 import {
 	decodeBase64Str, getTime, isEmpty,
 	httpGET, httpPOST, getEpoch, getFactoryInfo,
-	RUN_DIR
+	shellQuote, RUN_DIR
 } from 'hongshuyun';
 
 const uci = cursor();
@@ -36,9 +36,16 @@ const groupHash = md5('hongshuyun');
 system(`mkdir -p ${RUN_DIR}`);
 
 function log(...args) {
-	const logfile = open(`${RUN_DIR}/hongshuyun.log`, 'a');
-	logfile.write(`${getTime()} [HONGSHUYUN] ${join(' ', args)}\n`);
-	logfile.close();
+	const line = `${getTime()} [HONGSHUYUN] ${join(' ', args)}\n`;
+	let logfile;
+	try {
+		logfile = open(`${RUN_DIR}/hongshuyun.log`, 'a');
+		logfile.write(line);
+		logfile.close();
+	} catch (e) {
+		try { if (logfile) logfile.close(); } catch (e2) {}
+		system(`/usr/bin/logger -t hongshuyun ${shellQuote(trim(line))}`);
+	}
 }
 
 function normalize_api_base(api) {
@@ -202,6 +209,7 @@ function main() {
 		return false;
 	}
 
+	let stopped = true;
 	log('Stopping service...');
 	init_action('hongshuyun', 'stop');
 
@@ -210,6 +218,7 @@ function main() {
 		log('No node fetched.');
 		log('Starting service...');
 		init_action('hongshuyun', 'start');
+		stopped = false;
 		return false;
 	}
 
@@ -226,6 +235,7 @@ function main() {
 		log('No valid node parsed.');
 		log('Starting service...');
 		init_action('hongshuyun', 'start');
+		stopped = false;
 		return false;
 	}
 
@@ -257,8 +267,26 @@ function main() {
 	log(sprintf('Sync done: added %s, removed %s.', added, removed));
 	log('Starting service...');
 	init_action('hongshuyun', 'start');
+	stopped = false;
 	return true;
 }
 
-main();
+let ok = false;
+try {
+	ok = main();
+} catch (e) {
+	let msg = null;
+	try {
+		msg = (type(e) === 'string') ? e : sprintf('%.J', e);
+	} catch (e2) {
+		msg = '' + e;
+	}
+	log('Exception:', msg);
+	try {
+		log('Starting service...');
+		init_action('hongshuyun', 'start');
+	} catch (e3) {}
+	ok = false;
+}
 
+exit(ok ? 0 : 1);
