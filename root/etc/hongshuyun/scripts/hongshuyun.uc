@@ -106,13 +106,17 @@ function readBytes(device, offset, length) {
 	let f;
 	try {
 		f = open(device, 'r');
+		if (!f)
+			throw 'open failed';
 		f.seek(offset);
 		const buf = f.read(length);
 		f.close();
+		if (buf === null || length(buf) !== length)
+			throw sprintf('read length mismatch: expect %d, got %d', length, buf ? length(buf) : 0);
 		return buf;
 	} catch (e) {
 		try { if (f) f.close(); } catch (e2) {}
-		return null;
+		throw sprintf('readBytes(%s,0x%X,%d) failed: %s', device, offset, length, e);
 	}
 }
 
@@ -128,9 +132,6 @@ export function getFactoryInfo() {
 	let pcb_sn = readBytes(FactoryPartition, PCBSNOffset, PCBSNLength);
 	let batch_no = readBytes(FactoryPartition, BatchOffset, BatchLength);
 	let mac_bytes = readBytes(FactoryPartition, MAC4Offset, MACLength);
-
-	if (!pcb_sn || !batch_no || !mac_bytes)
-		return null;
 
 	pcb_sn = replace(pcb_sn, /[\x00\xff]+$/g, '');
 	batch_no = replace(batch_no, /[\x00\xff]+$/g, '');

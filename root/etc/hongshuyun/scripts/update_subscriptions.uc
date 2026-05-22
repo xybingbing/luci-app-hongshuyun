@@ -72,7 +72,13 @@ function hongshuyun_get_token(api_base) {
 	try {
 		info = getFactoryInfo();
 	} catch (e) {
-		log('getFactoryInfo() failed.');
+		let msg = null;
+		try {
+			msg = (type(e) === 'string') ? e : sprintf('%.J', e);
+		} catch (e2) {
+			msg = '' + e;
+		}
+		log('getFactoryInfo() failed:', msg);
 	}
 
 	if (!info) {
