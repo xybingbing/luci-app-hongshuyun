@@ -158,12 +158,30 @@ default_prerm $0 $@' > "$TEMP_PKG_DIR/CONTROL/prerm"
 	CONTROL_TAR="$IPK_BUILD_DIR/control.tar.gz"
 	DEBIAN_BINARY="$IPK_BUILD_DIR/debian-binary"
 
-	tar -C "$TEMP_PKG_DIR" --exclude='./CONTROL' -czf "$DATA_TAR" .
+	TIMESTAMP="$(date --date="@$PKG_SOURCE_DATE_EPOCH" 2>/dev/null || date)"
+
+	( cd "$TEMP_PKG_DIR" && tar \
+		--format=gnu \
+		--numeric-owner \
+		--sort=name \
+		--exclude='./CONTROL' \
+		--exclude='./CONTROL/*' \
+		--exclude='CONTROL' \
+		--exclude='CONTROL/*' \
+		-cpf - \
+		--mtime="$TIMESTAMP" \
+		. | gzip -n - > "$DATA_TAR" )
 	installed_size="$(gzip -dc < "$DATA_TAR" | wc -c)"
 	sed -i -e "s/^Installed-Size: .*/Installed-Size: $installed_size/" \
 		"$TEMP_PKG_DIR"/CONTROL/control
 
-	tar -C "$TEMP_PKG_DIR/CONTROL" -czf "$CONTROL_TAR" .
+	( cd "$TEMP_PKG_DIR/CONTROL" && tar \
+		--format=gnu \
+		--numeric-owner \
+		--sort=name \
+		-cf - \
+		--mtime="$TIMESTAMP" \
+		. | gzip -n - > "$CONTROL_TAR" )
 	echo "2.0" > "$DEBIAN_BINARY"
 
 	IPK_PATH="$BASE_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
