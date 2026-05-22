@@ -108,7 +108,7 @@ export function getFactoryInfoError() {
 	return factory_last_error;
 };
 
-function readBytes(device, offset, length) {
+function readBytes(device, offset, len) {
 	let f;
 	try {
 		f = open(device, 'r');
@@ -117,16 +117,16 @@ function readBytes(device, offset, length) {
 			return null;
 		}
 		f.seek(offset);
-		const buf = f.read(length);
+		const buf = f.read(len);
 		f.close();
-		if (buf === null || length(buf) !== length) {
-			factory_last_error = sprintf('read %s length mismatch at 0x%X: expect %d, got %d', device, offset, length, buf ? length(buf) : 0);
+		if (buf === null || length(buf) !== len) {
+			factory_last_error = sprintf('read %s length mismatch at 0x%X: expect %d, got %d', device, offset, len, buf ? length(buf) : 0);
 			return null;
 		}
 		return buf;
 	} catch (e) {
 		try { if (f) f.close(); } catch (e2) {}
-		factory_last_error = sprintf('read %s failed at 0x%X len %d: %s', device, offset, length, e);
+		factory_last_error = sprintf('read %s failed at 0x%X len %d: %s', device, offset, len, e);
 		return null;
 	}
 }
