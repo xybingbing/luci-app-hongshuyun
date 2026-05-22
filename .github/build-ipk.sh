@@ -163,7 +163,7 @@ default_prerm $0 $@' > "$TEMP_PKG_DIR/CONTROL/prerm"
 	tar -C "$REPACK_DIR" -xzf "$IPK_PATH"
 
 	rm -f "$AR_IPK"
-	( cd "$REPACK_DIR" && ar -crf "$AR_IPK" ./debian-binary ./control.tar.gz ./data.tar.gz )
+	( cd "$REPACK_DIR" && ar rcs "$AR_IPK" debian-binary control.tar.gz data.tar.gz )
 
 	AR_LIST="$(ar t "$AR_IPK" 2>/dev/null || true)"
 	for f in debian-binary control.tar.gz data.tar.gz; do
