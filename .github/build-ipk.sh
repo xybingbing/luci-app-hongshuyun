@@ -137,7 +137,8 @@ default_postinst $0 $@' > "$TEMP_PKG_DIR/CONTROL/postinst"
 
 	cat > "$TEMP_PKG_DIR/CONTROL/postinst-pkg" <<-EOF
 		[ -n "\${IPKG_INSTROOT}" ] || {
-			(. /etc/uci-defaults/$PKG_NAME) && rm -f /etc/uci-defaults/$PKG_NAME
+			[ -f /etc/uci-defaults/$PKG_NAME ] && \
+				(. /etc/uci-defaults/$PKG_NAME) && rm -f /etc/uci-defaults/$PKG_NAME
 			rm -f /tmp/luci-indexcache
 			rm -rf /tmp/luci-modulecache/
 			exit 0
@@ -153,5 +154,24 @@ default_prerm $0 $@' > "$TEMP_PKG_DIR/CONTROL/prerm"
 
 	ipkg-build -m "" "$TEMP_PKG_DIR" "$TEMP_DIR"
 
-	mv "$TEMP_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk" "$BASE_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
+	IPK_PATH="$TEMP_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
+	REPACK_DIR="$TEMP_DIR/.repack"
+	AR_IPK="$TEMP_DIR/.repacked.ipk"
+
+	rm -rf "$REPACK_DIR"
+	mkdir -p "$REPACK_DIR"
+	tar -C "$REPACK_DIR" -xzf "$IPK_PATH"
+
+	rm -f "$AR_IPK"
+	( cd "$REPACK_DIR" && ar -crf "$AR_IPK" ./debian-binary ./control.tar.gz ./data.tar.gz )
+
+	AR_LIST="$(ar t "$AR_IPK" 2>/dev/null || true)"
+	for f in debian-binary control.tar.gz data.tar.gz; do
+		echo "$AR_LIST" | grep -qx "$f" || {
+			echo "Invalid repacked ipk: missing $f" >&2
+			exit 1
+		}
+	done
+
+	mv -f "$AR_IPK" "$BASE_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
 fi
