@@ -1,0 +1,65 @@
+#!/usr/bin/ucode
+/*
+ * SPDX-License-Identifier: GPL-2.0-only
+ *
+ * Copyright (C) 2023-2024 ImmortalWrt.org
+ */
+
+'use strict';
+
+import { access, lstat, popen, writefile } from 'fs';
+
+function shellquote(s) {
+	return `'${replace(s, "'", "'\\''")}'`;
+}
+
+function hasKernelModule(kmod) {
+	return (system(sprintf('[ -e "/lib/modules/$(uname -r)"/%s ]', shellquote(kmod))) === 0);
+}
+
+const RUN_DIR = '/var/run/hongshuyun';
+
+const methods = {
+	log_clean: {
+		args: { type: 'type' },
+		call: function(req) {
+			if (!(req.args?.type in ['hongshuyun', 'sing-box-c']))
+				return { result: false, error: 'illegal type' };
+
+			const filestat = lstat(`${RUN_DIR}/${req.args?.type}.log`);
+			if (filestat)
+				writefile(`${RUN_DIR}/${req.args?.type}.log`, '');
+			return { result: true };
+		}
+	},
+
+	singbox_get_features: {
+		call: function() {
+			let features = {};
+
+			const fd = popen('/usr/bin/sing-box version');
+			if (fd) {
+				for (let line = fd.read('line'); length(line); line = fd.read('line')) {
+					if (match(trim(line), /^sing-box version (.*)/))
+						features.version = match(trim(line), /^sing-box version (.*)/)[1];
+
+					let tags = match(trim(line), /^Tags: (.*)/);
+					if (tags)
+						for (let i in split(tags[1], ','))
+							features[i] = true;
+				}
+
+				fd.close();
+			}
+
+			features.hp_has_ip_full = access('/usr/libexec/ip-full');
+			features.hp_has_tcp_brutal = hasKernelModule('brutal.ko');
+			features.hp_has_tproxy = hasKernelModule('nft_tproxy.ko') || access('/etc/modules.d/nft-tproxy');
+			features.hp_has_tun = hasKernelModule('tun.ko') || access('/etc/modules.d/30-tun');
+
+			return features;
+		}
+	}
+};
+
+return { 'luci.hongshuyun': methods };

@@ -1,0 +1,31 @@
+#!/bin/sh
+
+[ -f "/www/luci-static/resources/icons/loading.gif" ] && \
+	sed -i "s,/loading.svg,/loading.gif,g" "/www/luci-static/resources/view/hongshuyun/status.js"
+
+uci -q batch <<-EOF >"/dev/null"
+	delete firewall.hongshuyun_pre
+
+	delete firewall.hongshuyun_forward
+	set firewall.hongshuyun_forward=include
+	set firewall.hongshuyun_forward.type=nftables
+	set firewall.hongshuyun_forward.path="/var/run/hongshuyun/fw4_forward.nft"
+	set firewall.hongshuyun_forward.position="chain-pre"
+	set firewall.hongshuyun_forward.chain="forward"
+
+	delete firewall.hongshuyun_input
+	set firewall.hongshuyun_input=include
+	set firewall.hongshuyun_input.type=nftables
+	set firewall.hongshuyun_input.path="/var/run/hongshuyun/fw4_input.nft"
+	set firewall.hongshuyun_input.position="chain-pre"
+	set firewall.hongshuyun_input.chain="input"
+
+	delete firewall.hongshuyun_post
+	set firewall.hongshuyun_post=include
+	set firewall.hongshuyun_post.type=nftables
+	set firewall.hongshuyun_post.path="/var/run/hongshuyun/fw4_post.nft"
+	set firewall.hongshuyun_post.position="table-post"
+	commit firewall
+EOF
+
+exit 0

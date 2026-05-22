@@ -1,0 +1,20 @@
+{
+	"luci-app-hongshuyun": {
+		"description": "Grant access to hongshuyun configuration",
+		"read": {
+			"file": {
+				"/etc/hongshuyun/scripts/update_subscriptions.uc": [ "exec" ],
+				"/var/run/hongshuyun/hongshuyun.log": [ "read" ],
+				"/var/run/hongshuyun/sing-box-c.log": [ "read" ]
+			},
+			"ubus": {
+				"service": [ "list" ],
+				"luci.hongshuyun": [ "*" ]
+			},
+			"uci": [ "hongshuyun" ]
+		},
+		"write": {
+			"uci": [ "hongshuyun" ]
+		}
+	}
+}
