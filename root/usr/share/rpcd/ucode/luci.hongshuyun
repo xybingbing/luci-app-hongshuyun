@@ -59,6 +59,26 @@ function wget(url, opts) {
 	return exec_capture(cmd);
 }
 
+function sh_capture(cmd) {
+	const marker = '__RC__';
+	const wrapped = `${cmd} 2>&1; printf "\\n${marker}%d\\n" $?`;
+	const fd = popen(`sh -c ${shellquote(wrapped)}`);
+	if (!fd)
+		return { code: 255, output: 'popen failed' };
+
+	const out = fd.read(1024 * 1024) ?? '';
+	fd.close();
+
+	let m = match(out, new RegExp(`\\n${marker}(\\d+)\\n$`));
+	if (!m)
+		return { code: 255, output: out };
+
+	return {
+		code: int(m[1]) || 0,
+		output: replace(out, new RegExp(`\\n${marker}\\d+\\n$`), '')
+	};
+}
+
 function github_headers() {
 	const token = uci.get('hongshuyun', 'config', 'github_token');
 	if (!token)
@@ -319,8 +339,12 @@ const methods = {
 	sync_nodes: {
 		call: function() {
 			system(`mkdir -p ${shellquote(RUN_DIR)}`);
-			const code = system('/usr/bin/ucode -S /etc/hongshuyun/scripts/update_subscriptions.uc >/dev/null 2>&1');
-			return { result: (code === 0), code };
+			const res = sh_capture('/usr/bin/ucode -S /etc/hongshuyun/scripts/update_subscriptions.uc');
+			return {
+				result: (res.code === 0),
+				code: res.code,
+				output: trim(res.output || '')
+			};
 		}
 	},
 

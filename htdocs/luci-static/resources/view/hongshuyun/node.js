@@ -107,7 +107,7 @@ return view.extend({
 						ui.addNotification(null, E('p', [
 							_('同步失败（退出码 %s）').format(res?.code ?? '-'),
 							E('br'),
-							E('small', {}, [ _('请查看运行状态里的红薯云日志') ])
+							E('small', {}, [ (res?.output || '').trim() || _('请查看运行状态里的红薯云日志') ])
 						]));
 						return this.map.reset();
 					}
