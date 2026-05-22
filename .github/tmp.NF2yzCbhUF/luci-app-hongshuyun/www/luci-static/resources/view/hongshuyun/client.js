@@ -123,5 +123,9 @@ return view.extend({
 				E('div', { 'class': 'hongshuyun-page' }, [ node ])
 			]);
 		});
-	}
+	},
+
+	handleSaveApply: null,
+	handleSave: null,
+	handleReset: null
 });

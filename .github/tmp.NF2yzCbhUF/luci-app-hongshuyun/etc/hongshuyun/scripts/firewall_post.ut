@@ -1,0 +1,116 @@
+#!/usr/bin/utpl -S
+
+{%-
+import { readfile } from 'fs';
+import { cursor } from 'uci';
+import { isEmpty } from '/etc/hongshuyun/scripts/hongshuyun.uc';
+
+const resources_dir = '/etc/hongshuyun/resources';
+
+const cfgname = 'hongshuyun';
+const uci = cursor();
+uci.load(cfgname);
+
+const ipv6_support = uci.get(cfgname, 'config', 'ipv6_support') || '0';
+
+const self_mark = uci.get(cfgname, 'infra', 'self_mark') || '100';
+const redirect_port = uci.get(cfgname, 'infra', 'redirect_port') || '5331';
+
+const tproxy_port = uci.get(cfgname, 'infra', 'tproxy_port') || '5332';
+const tproxy_mark = uci.get(cfgname, 'infra', 'tproxy_mark') || '101';
+
+const dns_redirect = uci.get(cfgname, 'infra', 'dns_redirect') || '1';
+const dns_hijacked = uci.get('dhcp', '@dnsmasq[0]', 'dns_redirect') || '0';
+const dns_port = uci.get('dhcp', '@dnsmasq[0]', 'port') || '53';
+-%}
+
+set hongshuyun_local_addr_v4 {
+	type ipv4_addr
+	flags interval
+	auto-merge
+	elements = {
+		0.0.0.0/8,
+		10.0.0.0/8,
+		100.64.0.0/10,
+		127.0.0.0/8,
+		169.254.0.0/16,
+		172.16.0.0/12,
+		192.168.0.0/16,
+		224.0.0.0/4,
+		240.0.0.0/4
+	}
+}
+{% if (ipv6_support === '1'): %}
+set hongshuyun_local_addr_v6 {
+	type ipv6_addr
+	flags interval
+	auto-merge
+	elements = {
+		::/128,
+		::1/128,
+		fc00::/7,
+		fe80::/10,
+		ff00::/8
+	}
+}
+{% endif %}
+
+set hongshuyun_mainland_addr_v4 {
+	type ipv4_addr
+	flags interval
+	auto-merge
+	elements = {
+		{% for (let cnip4 in split(trim(readfile(resources_dir + '/china_ip4.txt')), /[\r\n]/)): %}
+		{{ cnip4 }},
+		{% endfor %}
+	}
+}
+{% if (ipv6_support === '1'): %}
+set hongshuyun_mainland_addr_v6 {
+	type ipv6_addr
+	flags interval
+	auto-merge
+	elements = {
+		{% for (let cnip6 in split(trim(readfile(resources_dir + '/china_ip6.txt')), /[\r\n]/)): %}
+		{{ cnip6 }},
+		{% endfor %}
+	}
+}
+{% endif %}
+
+chain dstnat {
+	{% if ((dns_redirect === '1') && (dns_hijacked !== '1')): %}
+	meta nfproto { ipv4, ipv6 } udp dport 53 counter redirect to :{{ dns_port }} comment "!{{ cfgname }}: DNS hijack"
+	{% endif %}
+	meta nfproto { {{ (ipv6_support === '1') ? 'ipv4, ipv6' : 'ipv4' }} } meta l4proto tcp jump hongshuyun_redirect
+}
+
+chain mangle_prerouting {
+	meta nfproto { {{ (ipv6_support === '1') ? 'ipv4, ipv6' : 'ipv4' }} } meta l4proto udp jump hongshuyun_mangle_prerouting
+}
+
+chain hongshuyun_redirect {
+	meta mark {{ self_mark }} counter return
+
+	ip daddr @hongshuyun_local_addr_v4 counter return
+	ip daddr @hongshuyun_mainland_addr_v4 counter return
+	{% if (ipv6_support === '1'): %}
+	ip6 daddr @hongshuyun_local_addr_v6 counter return
+	ip6 daddr @hongshuyun_mainland_addr_v6 counter return
+	{% endif %}
+
+	meta l4proto tcp counter redirect to :{{ redirect_port }}
+}
+
+chain hongshuyun_mangle_prerouting {
+	meta mark {{ self_mark }} counter return
+
+	ip daddr @hongshuyun_local_addr_v4 counter return
+	ip daddr @hongshuyun_mainland_addr_v4 counter return
+	{% if (ipv6_support === '1'): %}
+	ip6 daddr @hongshuyun_local_addr_v6 counter return
+	ip6 daddr @hongshuyun_mainland_addr_v6 counter return
+	{% endif %}
+
+	meta l4proto udp counter meta mark set {{ tproxy_mark }} tproxy to :{{ tproxy_port }}
+}

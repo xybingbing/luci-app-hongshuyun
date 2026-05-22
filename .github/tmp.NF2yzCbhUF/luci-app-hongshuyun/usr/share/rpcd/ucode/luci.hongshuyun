@@ -1,0 +1,380 @@
+#!/usr/bin/ucode
+/*
+ * SPDX-License-Identifier: GPL-2.0-only
+ *
+ * Copyright (C) 2023-2024 ImmortalWrt.org
+ */
+
+'use strict';
+
+import { access, lstat, popen, readfile, writefile } from 'fs';
+import { cursor } from 'uci';
+
+function shellquote(s) {
+	return `'${replace(s, "'", "'\\''")}'`;
+}
+
+function hasKernelModule(kmod) {
+	return (system(sprintf('[ -e "/lib/modules/$(uname -r)"/%s ]', shellquote(kmod))) === 0);
+}
+
+const RUN_DIR = '/var/run/hongshuyun';
+const RES_DIR = '/etc/hongshuyun/resources';
+
+const uci = cursor();
+uci.load('hongshuyun');
+
+function exec_capture(cmd) {
+	const fd = popen(cmd);
+	if (!fd)
+		return null;
+
+	const data = fd.read(1024 * 1024) ?? '';
+	fd.close();
+	return data;
+}
+
+function wget(url, opts) {
+	if (!url)
+		return null;
+
+	let ua = opts?.ua || 'Wget/1.21 (Hongshuyun)';
+	let timeout = opts?.timeout || 10;
+	let headers = opts?.headers || {};
+	let out = opts?.out;
+
+	let header_args = '';
+	if (headers && type(headers) === 'object')
+		for (let k in keys(headers))
+			header_args += ` --header ${shellquote(k + ': ' + headers[k])}`;
+
+	let cmd = `/usr/bin/wget -q --user-agent ${shellquote(ua)} --timeout=${timeout}${header_args} `;
+	if (out)
+		cmd += `-O ${shellquote(out)} `;
+	else
+		cmd += '-O- ';
+
+	cmd += shellquote(url);
+
+	return exec_capture(cmd);
+}
+
+function sh_capture(cmd) {
+	const marker = '__RC__';
+	const wrapped = `${cmd} 2>&1; printf "\\n${marker}%d\\n" $?`;
+	const fd = popen(`sh -c ${shellquote(wrapped)}`);
+	if (!fd)
+		return { code: 255, output: 'popen failed' };
+
+	const out = fd.read(1024 * 1024) ?? '';
+	fd.close();
+
+	let m = match(out, /\n__RC__(\d+)\n$/);
+	if (!m)
+		return { code: 255, output: out };
+
+	return {
+		code: int(m[1]) || 0,
+		output: replace(out, /\n__RC__\d+\n$/, '')
+	};
+}
+
+function github_headers() {
+	const token = uci.get('hongshuyun', 'config', 'github_token');
+	if (!token)
+		return {};
+
+	return {
+		'Authorization': `Bearer ${token}`
+	};
+}
+
+function extract_version_from_message(msg) {
+	if (!msg)
+		return null;
+
+	let m = match(msg, /[0-9-]+/);
+	if (!m || !m[0])
+		return null;
+
+	return replace(m[0], /-/g, '');
+}
+
+function resources_meta(type) {
+	switch (type) {
+	case 'china_ip4':
+		return {
+			type,
+			repo: '1715173329/IPCIDR-CHINA',
+			ref: 'master',
+			path: 'ipv4.txt',
+			local_txt: `${RES_DIR}/china_ip4.txt`,
+			local_ver: `${RES_DIR}/china_ip4.ver`
+		};
+	case 'china_ip6':
+		return {
+			type,
+			repo: '1715173329/IPCIDR-CHINA',
+			ref: 'master',
+			path: 'ipv6.txt',
+			local_txt: `${RES_DIR}/china_ip6.txt`,
+			local_ver: `${RES_DIR}/china_ip6.ver`
+		};
+	case 'gfw_list':
+		return {
+			type,
+			repo: 'Loyalsoldier/v2ray-rules-dat',
+			ref: 'release',
+			path: 'gfw.txt',
+			local_txt: `${RES_DIR}/gfw_list.txt`,
+			local_ver: `${RES_DIR}/gfw_list.ver`
+		};
+	case 'china_list':
+		return {
+			type,
+			repo: 'Loyalsoldier/v2ray-rules-dat',
+			ref: 'release',
+			path: 'direct-list.txt',
+			local_txt: `${RES_DIR}/china_list.txt`,
+			local_ver: `${RES_DIR}/china_list.ver`,
+			postprocess: function() {
+				system(`sed -i -e 's/full:\\/\\//g' -e '/:/d' ${shellquote(`${RES_DIR}/china_list.txt`)}`);
+			}
+		};
+	default:
+		return null;
+	}
+}
+
+function read_ver(path) {
+	try {
+		return trim(readfile(path) ?? '');
+	} catch (e) {
+		return null;
+	}
+}
+
+function github_latest_commit(meta) {
+	const api = `https://api.github.com/repos/${meta.repo}/commits?sha=${meta.ref}&path=${meta.path}&per_page=1`;
+	const body = wget(api, {
+		headers: github_headers(),
+		timeout: 10
+	});
+
+	if (!body)
+		return null;
+
+	let sha = match(body, /"sha"\s*:\s*"([0-9a-f]{40})"/);
+	if (!sha || !sha[1])
+		return null;
+
+	let msg = match(body, /"message"\s*:\s*"([^"]*)"/);
+	let ver = extract_version_from_message(msg?.[1]);
+	if (!ver)
+		ver = substr(sha[1], 0, 12);
+
+	return { sha: sha[1], ver };
+}
+
+function resources_update_one(type) {
+	const meta = resources_meta(type);
+	if (!meta)
+		return { result: false, error: 'illegal type' };
+
+	const local_ver = read_ver(meta.local_ver) || '';
+	const remote = github_latest_commit(meta);
+	if (!remote)
+		return { result: false, error: 'failed to get latest version' };
+
+	if (local_ver && local_ver === remote.ver)
+		return { result: true, updated: false, local_version: local_ver, remote_version: remote.ver };
+
+	system(`mkdir -p ${shellquote(RUN_DIR)}`);
+	const tmp = `${RUN_DIR}/${type}.tmp`;
+	const url = `https://raw.githubusercontent.com/${meta.repo}/${remote.sha}/${meta.path}`;
+
+	wget(url, {
+		headers: github_headers(),
+		timeout: 20,
+		out: tmp
+	});
+
+	if (!lstat(tmp) || (lstat(tmp)?.size || 0) <= 0) {
+		system(`rm -f ${shellquote(tmp)}`);
+		return { result: false, error: 'download failed' };
+	}
+
+	system(`mv -f ${shellquote(tmp)} ${shellquote(meta.local_txt)}`);
+	writefile(meta.local_ver, `${remote.ver}\n`);
+
+	if (meta.postprocess)
+		meta.postprocess();
+
+	return { result: true, updated: true, local_version: local_ver, remote_version: remote.ver };
+}
+
+function cron_apply_impl() {
+	const uc = cursor();
+	uc.load('hongshuyun');
+
+	const enabled = uc.get('hongshuyun', 'subscription', 'auto_update') === '1';
+	const hour = uc.get('hongshuyun', 'subscription', 'auto_update_time') || '2';
+
+	const crontab = '/etc/crontabs/root';
+	const cmd = '/bin/sh /etc/hongshuyun/scripts/update_crond.sh';
+
+	let content = '';
+	try {
+		content = readfile(crontab) ?? '';
+	} catch (e) {
+		content = '';
+	}
+
+	let lines = [];
+	for (let line in split(content, /[\r\n]+/)) {
+		line = trim(line);
+		if (!line)
+			continue;
+		if (match(line, /update_crond\.sh/))
+			continue;
+		push(lines, line);
+	}
+
+	if (enabled)
+		push(lines, `0 ${hour} * * * ${cmd}`);
+
+	try {
+		writefile(crontab, join('\n', lines) + '\n');
+	} catch (e) {
+		return { result: false, error: 'write crontab failed' };
+	}
+
+	system('/etc/init.d/cron restart >/dev/null 2>&1');
+
+	return { result: true };
+}
+
+const methods = {
+	log_clean: {
+		args: { type: 'type' },
+		call: function(req) {
+			if (!(req.args?.type in ['hongshuyun', 'sing-box-c']))
+				return { result: false, error: 'illegal type' };
+
+			const filestat = lstat(`${RUN_DIR}/${req.args?.type}.log`);
+			if (filestat)
+				writefile(`${RUN_DIR}/${req.args?.type}.log`, '');
+			return { result: true };
+		}
+	},
+
+	connection_check: {
+		args: { target: 'target' },
+		call: function(req) {
+			let url;
+			switch (req.args?.target) {
+			case 'baidu':
+				url = 'https://www.baidu.com';
+				break;
+			case 'google':
+				url = 'https://www.google.com/generate_204';
+				break;
+			default:
+				return { result: false, error: 'illegal target' };
+			}
+
+			const cmd = `/usr/bin/wget -q --spider --timeout=5 --user-agent ${shellquote('Wget/1.21 (Hongshuyun)')} ${shellquote(url)}`;
+			const ok = (system(cmd) === 0);
+			return { result: ok };
+		}
+	},
+
+	resources_get_version: {
+		call: function() {
+			return {
+				china_ip4: read_ver(`${RES_DIR}/china_ip4.ver`),
+				china_ip6: read_ver(`${RES_DIR}/china_ip6.ver`),
+				china_list: read_ver(`${RES_DIR}/china_list.ver`),
+				gfw_list: read_ver(`${RES_DIR}/gfw_list.ver`)
+			};
+		}
+	},
+
+	resources_update: {
+		args: { type: 'type' },
+		call: function(req) {
+			const type = req.args?.type;
+			if (!type)
+				return { result: false, error: 'missing type' };
+
+			if (type === 'all') {
+				let ret = {
+					result: true,
+					updated: false,
+					details: {}
+				};
+
+				for (let t in ['china_ip4', 'china_ip6', 'china_list', 'gfw_list']) {
+					const r = resources_update_one(t);
+					ret.details[t] = r;
+					if (!r.result)
+						ret.result = false;
+					if (r.updated)
+						ret.updated = true;
+				}
+
+				return ret;
+			}
+
+			return resources_update_one(type);
+		}
+	},
+
+	cron_apply: {
+		call: function() {
+			return cron_apply_impl();
+		}
+	},
+
+	sync_nodes: {
+		call: function() {
+			system(`mkdir -p ${shellquote(RUN_DIR)}`);
+			const res = sh_capture('/usr/bin/ucode -S /etc/hongshuyun/scripts/update_subscriptions.uc');
+			return {
+				result: (res.code === 0),
+				code: res.code,
+				output: trim(res.output || '')
+			};
+		}
+	},
+
+	singbox_get_features: {
+		call: function() {
+			let features = {};
+
+			const fd = popen('/usr/bin/sing-box version');
+			if (fd) {
+				for (let line = fd.read('line'); length(line); line = fd.read('line')) {
+					if (match(trim(line), /^sing-box version (.*)/))
+						features.version = match(trim(line), /^sing-box version (.*)/)[1];
+
+					let tags = match(trim(line), /^Tags: (.*)/);
+					if (tags)
+						for (let i in split(tags[1], ','))
+							features[i] = true;
+				}
+
+				fd.close();
+			}
+
+			features.hp_has_ip_full = access('/usr/libexec/ip-full');
+			features.hp_has_tcp_brutal = hasKernelModule('brutal.ko');
+			features.hp_has_tproxy = hasKernelModule('nft_tproxy.ko') || access('/etc/modules.d/nft-tproxy');
+			features.hp_has_tun = hasKernelModule('tun.ko') || access('/etc/modules.d/30-tun');
+
+			return features;
+		}
+	}
+};
+
+return { 'luci.hongshuyun': methods };

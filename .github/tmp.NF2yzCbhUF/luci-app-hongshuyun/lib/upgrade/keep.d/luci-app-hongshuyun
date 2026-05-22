@@ -1,0 +1,4 @@
+/etc/hongshuyun/certs/
+/etc/hongshuyun/ruleset/
+/etc/hongshuyun/resources/direct_list.txt
+/etc/hongshuyun/resources/proxy_list.txt
