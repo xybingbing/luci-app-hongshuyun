@@ -95,10 +95,6 @@ return view.extend({
 		o.default = o.enabled;
 		o.rmempty = false;
 
-		o = s.option(form.Value, 'hongshuyun_api', _('接口地址'));
-		o.default = 'http://api.hongshu.one';
-		o.rmempty = false;
-
 		o = s.option(form.Flag, 'auto_update', _('自动更新'));
 		o.default = '0';
 		o.rmempty = false;
@@ -130,6 +126,10 @@ return view.extend({
 				return this.map.reset();
 			});
 		};
+
+		o = s.option(form.Value, 'hongshuyun_api', _('接口地址'));
+		o.default = 'http://api.hongshu.one';
+		o.rmempty = false;
 
 		o = s.option(form.DummyValue, '_sync', _('同步节点'));
 		o.cfgvalue = L.bind(getSyncNodes, m, o);
