@@ -151,33 +151,30 @@ default_postinst $0 $@' > "$TEMP_PKG_DIR/CONTROL/postinst"
 default_prerm $0 $@' > "$TEMP_PKG_DIR/CONTROL/prerm"
 	chmod 0755 "$TEMP_PKG_DIR/CONTROL/prerm"
 
-	ipkg-build -m "" "$TEMP_PKG_DIR" "$TEMP_DIR"
+	IPK_BUILD_DIR="$TEMP_DIR/.ipkbuild"
+	mkdir -p "$IPK_BUILD_DIR"
 
-	IPK_PATH="$TEMP_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
+	DATA_TAR="$IPK_BUILD_DIR/data.tar.gz"
+	CONTROL_TAR="$IPK_BUILD_DIR/control.tar.gz"
+	DEBIAN_BINARY="$IPK_BUILD_DIR/debian-binary"
+
+	tar -C "$TEMP_PKG_DIR" --exclude='./CONTROL' -czf "$DATA_TAR" .
+	installed_size="$(gzip -dc < "$DATA_TAR" | wc -c)"
+	sed -i -e "s/^Installed-Size: .*/Installed-Size: $installed_size/" \
+		"$TEMP_PKG_DIR"/CONTROL/control
+
+	tar -C "$TEMP_PKG_DIR/CONTROL" -czf "$CONTROL_TAR" .
+	echo "2.0" > "$DEBIAN_BINARY"
+
+	IPK_PATH="$BASE_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
+	rm -f "$IPK_PATH"
+	( cd "$IPK_BUILD_DIR" && ar rcs "$IPK_PATH" debian-binary control.tar.gz data.tar.gz )
+
 	AR_LIST="$(ar t "$IPK_PATH" 2>/dev/null || true)"
-	if [ -z "$AR_LIST" ]; then
-		REPACK_DIR="$TEMP_DIR/.repack"
-		mkdir -p "$REPACK_DIR"
-		if gzip -dc "$IPK_PATH" 2>/dev/null | tar -C "$REPACK_DIR" -xf - 2>/dev/null; then
-			if [ -f "$REPACK_DIR/debian-binary" ] && [ -f "$REPACK_DIR/control.tar.gz" ] && [ -f "$REPACK_DIR/data.tar.gz" ]; then
-				AR_IPK="$TEMP_DIR/.repacked.ipk"
-				rm -f "$AR_IPK"
-				( cd "$REPACK_DIR" && ar rcs "$AR_IPK" debian-binary control.tar.gz data.tar.gz )
-				mv -f "$AR_IPK" "$IPK_PATH"
-				AR_LIST="$(ar t "$IPK_PATH" 2>/dev/null || true)"
-			fi
-		fi
-	fi
-	if [ -z "$AR_LIST" ]; then
-		echo "Invalid ipk: $IPK_PATH" >&2
-		exit 1
-	fi
 	for f in debian-binary control.tar.gz data.tar.gz; do
 		echo "$AR_LIST" | grep -qx "$f" || {
 			echo "Invalid ipk: missing $f" >&2
 			exit 1
 		}
 	done
-
-	mv "$IPK_PATH" "$BASE_DIR/${PKG_NAME}_${PKG_VERSION}_all.ipk"
 fi
