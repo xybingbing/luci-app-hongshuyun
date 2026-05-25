@@ -70,7 +70,7 @@ function getSyncNodes(o) {
 			})
 		}, [ _('同步') ]),
 		' ',
-		E('strong', { 'style': 'color:gray' }, _('未同步'))
+		E('strong', { 'style': 'color:gray' }, _(''))
 	]);
 }
 
