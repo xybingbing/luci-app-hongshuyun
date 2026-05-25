@@ -272,12 +272,6 @@ function main() {
 		added++;
 	}
 
-	let main_node = uci.get(uciconfig, ucimain, 'main_node') || 'nil';
-	if (main_node === 'nil' || !uci.get(uciconfig, main_node)) {
-		const first = md5(parsed[0].label);
-		uci.set(uciconfig, ucimain, 'main_node', first);
-	}
-
 	uci.commit(uciconfig);
 
 	log(sprintf('Sync done: added %s, removed %s.', added, removed));
