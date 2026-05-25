@@ -43,6 +43,7 @@ function getSyncNodes(o) {
 			'click': ui.createHandlerFn(this, () => {
 				let ele = o.default.firstElementChild.nextElementSibling;
 				ele.style.setProperty('color', 'gray');
+				ele.innerHTML = _('');
 
 				return this.save(null, true).then(() => {
 					return L.resolveDefault(callSyncNodes(), {});
@@ -58,6 +59,7 @@ function getSyncNodes(o) {
 						]));
 					} else {
 						ele.style.setProperty('color', 'green');
+						ele.innerHTML = _('');
 					}
 
 					return o.map.reset();
